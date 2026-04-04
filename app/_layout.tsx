@@ -3,6 +3,8 @@ import "@/global.css";
 import { useEffect } from "react";
 import {useFonts} from 'expo-font';
 
+SplashScreen.preventAutoHideAsync();
+
 export default function RootLayout() {
 
   //usefonts hook from expo-fonts , pass objects where key is font name and values are font files
