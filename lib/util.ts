@@ -19,7 +19,7 @@ export const formatCurrency = (
             maximumFractionDigits: 2,
         }).format(numericValue);
     } catch {
-        return `₹${numericValue.toFixed(2)}`;
+        return value.toFixed(2);
     }
 };
 
