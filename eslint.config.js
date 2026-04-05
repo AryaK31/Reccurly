@@ -6,5 +6,13 @@ module.exports = defineConfig([
   expoConfig,
   {
     ignores: ['dist/*'],
+    rules: {
+      'import/no-unresolved': [
+        'error',
+        {
+          ignore: ['^@clerk/expo$', '^@clerk/expo/token-cache$'],
+        },
+      ],
+    },
   },
 ]);

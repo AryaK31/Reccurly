@@ -16,10 +16,12 @@ import ListHeading from "@/components/ListHeading";
 import SubscriptionCard from "@/components/SubscriptionCard";
 import UpcomingSubscriptionCard from "@/components/UpcomingSubscriptionCard";
 import { useState } from "react";
+import { usePostHog } from "posthog-react-native";
 
 const SafeAreaView = styled(RNSafeAreaView);
 
 export default function HomeTab() {
+    const posthog = usePostHog();
     const [expandedSubscriptionId, setExpandedSubscriptionId] = useState<
         string | null
     >(null);
@@ -93,11 +95,16 @@ export default function HomeTab() {
                     <SubscriptionCard
                         {...item}
                         expanded={expandedSubscriptionId === item.id}
-                        onPress={() =>
+                        onPress={() => {
+                            const isExpanding = expandedSubscriptionId !== item.id;
+                            posthog.capture('subscription_card_tapped', {
+                                subscription_id: item.id,
+                                action: isExpanding ? 'expand' : 'collapse',
+                            });
                             setExpandedSubscriptionId((prev) =>
                                 prev === item.id ? null : item.id
-                            )
-                        }
+                            );
+                        }}
                     />
                 )}
                 extraData={expandedSubscriptionId}
