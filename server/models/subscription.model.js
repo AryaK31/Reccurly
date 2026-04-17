@@ -1,0 +1,118 @@
+import dayjs from "dayjs";
+import mongoose from "mongoose";
+
+const HEX_COLOR_REGEX = /^#(?:[0-9A-F]{3}|[0-9A-F]{6})$/i;
+
+const subscriptionSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: [true, "Subscription name is required"],
+      trim: true,
+      minlength: 2,
+      maxlength: 100,
+    },
+    price: {
+      type: Number,
+      required: [true, "Price is required"],
+      min: [0, "Price must be a positive number"],
+    },
+    currency: {
+      type: String,
+      enum: ["USD", "EUR", "GBP", "INR", "JPY", "AUD"],
+      required: true,
+    },
+    frequency: {
+      type: String,
+      enum: ["monthly", "quarterly", "yearly"],
+      required: true,
+    },
+    category: {
+      type: String,
+      enum: [
+        "Entertainment",
+        "Food",
+        "Health",
+        "AI Tools",
+        "Developer Tools",
+        "Design",
+        "Productivity",
+        "Other",
+      ],
+
+      required: true,
+    },
+    color: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: "#2563EB",
+      match: [HEX_COLOR_REGEX, "Color must be a valid hex color"],
+    },
+    startDate: {
+      type: Date,
+      required: true,
+      validate: {
+        validator: function (value) {
+          return value <= new Date();
+        },
+        message: "Start date cannot be in the future",
+      },
+    },
+    renewalDate: {
+      type: Date,
+      required: true,
+      validate: {
+        validator: function (value) {
+          return value > this.startDate;
+        },
+        message: "Renewal date must be after the start date",
+      },
+    },
+    paymentMethod: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    status: {
+      type: String,
+      enum: ["active", "cancelled", "expired"],
+      default: "active",
+    },
+    userId: {
+        type: String,
+        required: true,
+        index: true,
+    }
+  },
+  { timestamps: true },
+);
+
+// Auto-calculate renewal date if missing
+subscriptionSchema.pre("validate", function (next) {
+  if (!this.renewalDate) {
+    const renewalPeriods = {
+      monthly: 30,
+      quarterly: 90,
+      yearly: 365,
+    };
+    this.renewalDate = dayjs(this.startDate)
+      .add(renewalPeriods[this.frequency], "day")
+      .toDate();
+  }
+
+  if (this.status === "cancelled") {
+    return next();
+  }
+
+  const now = dayjs();
+  const renewalDay = dayjs(this.renewalDate);
+
+  this.status = now.isAfter(renewalDay, "day") ? "expired" : "active";
+
+  next();
+});
+
+const Subscription = mongoose.model("Subscription", subscriptionSchema);
+
+export default Subscription;

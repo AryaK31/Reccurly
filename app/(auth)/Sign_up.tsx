@@ -265,7 +265,7 @@ const SignUp = () => {
                         {/* Sign-In Link */}
                         <View className="auth-link-row">
                             <Text className="auth-link-copy">Already have an account?</Text>
-                            <Link href="/(auth)/Sign_in" asChild>
+                            <Link href="/(auth)/sign_in" asChild>
                                 <Pressable>
                                     <Text className="auth-link">Sign In</Text>
                                 </Pressable>

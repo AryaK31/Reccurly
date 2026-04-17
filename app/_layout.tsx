@@ -1,80 +1,112 @@
-import {SplashScreen, Stack, usePathname, useGlobalSearchParams} from "expo-router";
-import '@/global.css';
-import {useFonts} from "expo-font";
-import {useEffect, useRef} from "react";
-import { ClerkProvider, useAuth } from '@clerk/expo';
-import { tokenCache } from '@clerk/expo/token-cache';
-import { PostHogProvider } from 'posthog-react-native';
-import { posthog } from '../src/config/posthog';
+import "@/global.css";
+import { ClerkProvider, useAuth } from "@clerk/expo";
+import { tokenCache } from "@clerk/expo/token-cache";
+import { useFonts } from "expo-font";
+import {
+  SplashScreen,
+  Stack,
+  useGlobalSearchParams,
+  usePathname,
+} from "expo-router";
+import { PostHogProvider } from "posthog-react-native";
+import { useEffect, useRef } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { posthog } from "../src/config/posthog";
 
 SplashScreen.preventAutoHideAsync();
 
-const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
+const publishableKey =
+  process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
 if (!publishableKey) {
-  throw new Error('Add your Clerk Publishable Key to the .env file');
+  throw new Error(
+    "Add your Clerk Publishable Key to the .env file"
+  );
 }
 
 function RootLayoutContent() {
-  const { isLoaded: authLoaded } = useAuth();
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const pathname = usePathname();
   const params = useGlobalSearchParams();
-  const previousPathname = useRef<string | undefined>(undefined);
+  const previousPathname = useRef<string | undefined>(
+    undefined
+  );
 
+  // 📊 PostHog tracking
   useEffect(() => {
     if (previousPathname.current !== pathname) {
-      // Filter route params to avoid leaking sensitive data
-      const sanitizedParams = Object.keys(params).reduce((acc, key) => {
-        // Only include specific safe params
-        if (['id', 'tab', 'view'].includes(key)) {
-          acc[key] = params[key];
-        }
-        return acc;
-      }, {} as Record<string, string | string[]>);
+      const sanitizedParams = Object.keys(params).reduce(
+        (acc, key) => {
+          if (["id", "tab", "view"].includes(key)) {
+            acc[key] = params[key];
+          }
+          return acc;
+        },
+        {} as Record<string, string | string[]>
+      );
 
       posthog.screen(pathname, {
-        previous_screen: previousPathname.current ?? null,
+        previous_screen:
+          previousPathname.current ?? null,
         ...sanitizedParams,
       });
+
       previousPathname.current = pathname;
     }
   }, [pathname, params]);
 
+  // 🎨 Fonts
   const [fontsLoaded] = useFonts({
-    'sans-regular': require('../assets/fonts/PlusJakartaSans-Regular.ttf'),
-    'sans-bold': require('../assets/fonts/PlusJakartaSans-Bold.ttf'),
-    'sans-medium': require('../assets/fonts/PlusJakartaSans-Medium.ttf'),
-    'sans-semibold': require('../assets/fonts/PlusJakartaSans-SemiBold.ttf'),
-    'sans-extrabold': require('../assets/fonts/PlusJakartaSans-ExtraBold.ttf'),
-    'sans-light': require('../assets/fonts/PlusJakartaSans-Light.ttf')
-  })
+    "sans-regular": require("../assets/fonts/PlusJakartaSans-Regular.ttf"),
+    "sans-bold": require("../assets/fonts/PlusJakartaSans-Bold.ttf"),
+    "sans-medium": require("../assets/fonts/PlusJakartaSans-Medium.ttf"),
+    "sans-semibold": require("../assets/fonts/PlusJakartaSans-SemiBold.ttf"),
+    "sans-extrabold": require("../assets/fonts/PlusJakartaSans-ExtraBold.ttf"),
+    "sans-light": require("../assets/fonts/PlusJakartaSans-Light.ttf"),
+  });
 
+  // 🚀 Hide splash
   useEffect(() => {
-    // Hide splash only when both fonts and auth are loaded
     if (fontsLoaded && authLoaded) {
-      SplashScreen.hideAsync()
+      SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, authLoaded])
+  }, [fontsLoaded, authLoaded]);
 
-  // Don't render app until both are ready
+  // ⛔ Wait until ready
   if (!fontsLoaded || !authLoaded) return null;
 
+  // 🔐 AUTH GUARD (🔥 MAIN FIX)
+  if (!isSignedIn) {
+    return (
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(auth)/sign-in" />
+        <Stack.Screen name="(auth)/sign-up" />
+      </Stack>
+    );
+  }
+
+  // ✅ MAIN APP
   return <Stack screenOptions={{ headerShown: false }} />;
 }
 
 export default function RootLayout() {
   return (
-    <PostHogProvider
-      client={posthog}
-      autocapture={{
-        captureScreens: false,
-        captureTouches: true,
-        propsToCapture: ['testID'],
-      }}
-    >
-      <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-        <RootLayoutContent />
-      </ClerkProvider>
-    </PostHogProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <PostHogProvider
+        client={posthog}
+        autocapture={{
+          captureScreens: false,
+          captureTouches: true,
+          propsToCapture: ["testID"],
+        }}
+      >
+        <ClerkProvider
+          publishableKey={publishableKey}
+          tokenCache={tokenCache}
+        >
+          <RootLayoutContent />
+        </ClerkProvider>
+      </PostHogProvider>
+    </GestureHandlerRootView>
   );
 }

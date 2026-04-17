@@ -1,25 +1,73 @@
-import { View, Text } from 'react-native'
-import React, { useEffect } from 'react'
-import { useLocalSearchParams, Link } from 'expo-router'
-import { usePostHog } from 'posthog-react-native'
+import { View, Text } from 'react-native';
+import { Link, useLocalSearchParams } from 'expo-router';
+import { useAuth } from '@clerk/expo';
+import { useEffect, useState } from 'react';
+import { usePostHog } from 'posthog-react-native';
+import { subscriptionApi } from '@/lib/api/subscriptions';
+import { mapBackendSubscription } from '@/lib/subscriptionMapper';
+import { formatCurrency, formatSubscriptionDateTime } from '@/lib/util';
 
-const SubscriptionDetails  = () =>
-{
-    const {id}=useLocalSearchParams<{id : string}>();
-    const posthog = usePostHog();
+const SubscriptionDetails = () => {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { getToken } = useAuth();
+  const posthog = usePostHog();
 
-    useEffect(() => {
-        posthog.capture('subscription_detail_viewed', {
-            subscription_id: id,
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadSubscription = async () => {
+      if (!id || typeof id !== 'string') return;
+
+      try {
+        const token = await getToken();
+        if (!token) return;
+
+        const response = await subscriptionApi.getById(token, id);
+        const mappedSubscription = mapBackendSubscription(response.data);
+
+        setSubscription(mappedSubscription);
+
+        posthog.capture('subscription_details_viewed', {
+          subscription_id: id,
         });
-    }, [id, posthog]);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load subscription');
+      }
+    };
 
+    loadSubscription();
+  }, [id, getToken, posthog]);
+
+  if (error) {
     return (
-        <View>
-        <Text>SubscriptionDetails : {id}</Text>
-        <Link href="/">Go Back</Link>
-        </View>
-    )
-}
+      <View>
+        <Text>{error}</Text>
+        <Link href="/">Go back</Link>
+      </View>
+    );
+  }
 
-export default SubscriptionDetails
+  if (!subscription) {
+    return (
+      <View>
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View>
+      <Text>{subscription.name}</Text>
+      <Text>{formatCurrency(subscription.price, subscription.currency)}</Text>
+      <Text>Status: {subscription.status}</Text>
+      <Text>Billing: {subscription.billing}</Text>
+      <Text>Payment: {subscription.paymentMethod}</Text>
+      <Text>Renews: {formatSubscriptionDateTime(subscription.renewalDate)}</Text>
+
+      <Link href="/">Go back</Link>
+    </View>
+  );
+};
+
+export default SubscriptionDetails;

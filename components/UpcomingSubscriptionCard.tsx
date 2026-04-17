@@ -9,7 +9,10 @@ const UpcomingSubscriptionCard = ({ name, price, daysLeft, icon, currency }: Upc
 
             <View className="upcoming-row">
 
-                <Image source={icon} className="upcoming-icon" />
+                <Image
+                    source={typeof icon === "string" ? { uri: icon } : icon}
+                    className="upcoming-icon"
+                />
 
                 <View>
 
